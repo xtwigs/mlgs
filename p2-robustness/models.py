@@ -129,15 +129,19 @@ class SmoothClassifier(nn.Module):
 
         ##########################################################
         # YOUR CODE HERE
-        ...
+
+        top_class = self._sample_noise_predictions(inputs, n0, batch_size).argmax()
+        certify_samples = self._sample_noise_predictions(inputs, num_samples, batch_size)
+        p_A_lower_bound = lower_confidence_bound(certify_samples[top_class], num_samples, alpha) 
+
         ##########################################################
 
         if p_A_lower_bound < 0.5:
             return SmoothClassifier.ABSTAIN, 0.0
         else:
             ##########################################################
-            # YOUR CODE HERE
-            ...
+            # sig * inv_cdf(lower_bound)
+            radius = self.sigma * norm.ppf(p_A_lower_bound)
             ##########################################################
             return top_class, radius
 
@@ -176,7 +180,9 @@ class SmoothClassifier(nn.Module):
                                                       batch_size).cpu()
         ##########################################################
         # YOUR CODE HERE
-        ...
+        classes, idx = torch.topk(class_counts, 2)        
+        c1, c2 = classes[0], classes[1]
+        return SmoothClassifier.ABSTAIN if binom_test(c1, c1 + c2) > alpha else idx[0]        
         ##########################################################
 
     def _sample_noise_predictions(self, inputs: torch.tensor, num_samples: int, 
@@ -210,11 +216,19 @@ class SmoothClassifier(nn.Module):
             classes = torch.arange(self.num_classes).to(self.device())
             class_counts = torch.zeros([self.num_classes], dtype=torch.long, 
                                        device=self.device())
-            for it in range(ceil(num_samples / batch_size)):
+            for it in range(ceil(num_samples / batch_size)):    
                 this_batch_size = min(num_remaining, batch_size)
                 ##########################################################
-                # YOUR CODE HERE
-                ...
+                # YOUR CODE
+                num_remaining -= this_batch_size
+
+                c, n = inputs.shape[1], inputs.shape[2]
+                eps = torch.distributions.Normal(0, self.sigma).sample((this_batch_size,c,n,n))
+                perturbed = inputs + eps
+                torch.clamp_(perturbed, 0, 1.0)
+                
+                counts = self.base_classifier(perturbed).argmax(1).bincount(minlength=self.num_classes)
+                class_counts += counts
                 ##########################################################
         return class_counts
 

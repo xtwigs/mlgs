@@ -52,7 +52,20 @@ def train_model(model: nn.Module, dataset: Dataset, batch_size: int,
         for x,y in tqdm(train_loader, total=num_train_batches):
             ##########################################################
             # YOUR CODE HERE
-            ...
+
+            x = x.to(device)
+            y = y.to(device)
+
+            loss, logits = loss_function(x, y, model, **loss_args)
+            losses.append(loss.item())
+        
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        
+            prediction = logits.argmax(1)
+            acc = torch.count_nonzero(prediction == y)/batch_size
+            accuracies.append(acc)
             ##########################################################
     return losses, accuracies
 
@@ -97,7 +110,18 @@ def predict_model(model: nn.Module, dataset: Dataset, batch_size: int,
     for x, y in tqdm(test_loader, total=num_batches):
         ##########################################################
         # YOUR CODE HERE
-        ...
+        
+        x = x.to(device)
+        y = y.to(device)
+    
+        if attack_function:
+            x.requires_grad = True
+            x = attack_function(model(x), x, y, **attack_args)
+
+        pred = model(x).argmax(1)
+        predictions.append(pred)
+        targets.append(y)
+
         ##########################################################
     predictions = torch.cat(predictions)
     targets = torch.cat(targets)
@@ -167,7 +191,24 @@ def evaluate_robustness_smoothing(base_classifier: nn.Module,
     for x, y in tqdm(test_loader, total=len(dataset)):
         ##########################################################
         # YOUR CODE HERE
-        ...
+        x.to(device)
+        y.to(device)
+
+        pred, radius = model.certify(x, num_samples_1, num_samples_2, alpha, certification_batch_size)
+
+        # always add radius?
+
+        if (pred == model.ABSTAIN):
+            abstains +=1
+
+        if (pred == y):
+            correct_certified += 1
+        
+        if (pred != y):
+            false_predictions += 1
+
+        radii.append(radius)
+
         ##########################################################
     avg_radius = torch.tensor(radii).mean().item()
     return dict(abstains=abstains, false_predictions=false_predictions, 
