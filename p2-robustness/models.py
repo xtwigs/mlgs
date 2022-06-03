@@ -220,15 +220,11 @@ class SmoothClassifier(nn.Module):
                 this_batch_size = min(num_remaining, batch_size)
                 ##########################################################
                 # YOUR CODE
+                logits = self.forward(inputs.repeat(this_batch_size, 1, 1, 1))
+                predictions = logits.argmax(dim=1)
+                one_hot = nn.functional.one_hot(predictions, num_classes=self.num_classes)
+                class_counts += one_hot.sum(dim=0)
                 num_remaining -= this_batch_size
-
-                c, n = inputs.shape[1], inputs.shape[2]
-                eps = torch.distributions.Normal(0, self.sigma).sample((this_batch_size,c,n,n))
-                perturbed = inputs + eps
-                torch.clamp_(perturbed, 0, 1.0)
-                
-                counts = self.base_classifier(perturbed).argmax(1).bincount(minlength=self.num_classes)
-                class_counts += counts
                 ##########################################################
         return class_counts
 

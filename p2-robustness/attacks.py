@@ -47,21 +47,14 @@ def gradient_attack(logits: torch.Tensor, x: torch.Tensor, y: torch.Tensor,
     loss.backward()
     gradients = x.grad
 
-    if norm == "1":
-        norm_l1 = torch.linalg.norm(gradients, ord=1, dim=(1,2,3), keepdim=True)
-        x_pert = x + epsilon*gradients/norm_l1
-        x_pert = x_pert.clamp(0,1.0)
-
-
-    elif norm == "2":
-        norm_l2 = torch.linalg.norm(gradients, None, dim=(1,2,3), keepdim=True)
+    if norm in ("1", "2"):
+        norm_l2 = torch.linalg.norm(gradients, int(norm), dim=(1,2,3), keepdim=True)
         x_pert = x + epsilon*gradients/norm_l2
-        x_pert = x_pert.clamp(0,1.0)
-
-
+    
     elif norm == "inf":
         x_pert = x + epsilon*gradients.sign()
-        x_pert = x_pert.clamp(0,1.0)
+    
+    x_pert = x_pert.clamp(0,1.0)
 
     ##########################################################
 
