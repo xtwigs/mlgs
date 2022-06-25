@@ -196,18 +196,16 @@ def evaluate_robustness_smoothing(base_classifier: nn.Module,
 
         pred, radius = model.certify(x, num_samples_1, num_samples_2, alpha, certification_batch_size)
 
-        # always add radius?
-
         if (pred == model.ABSTAIN):
             abstains +=1
 
         if (pred == y):
             correct_certified += 1
-        
+            radii.append(radius)
+
         if (pred != y):
             false_predictions += 1
-
-        radii.append(radius)
+            radii.append(radius)
 
         ##########################################################
     avg_radius = torch.tensor(radii).mean().item()
